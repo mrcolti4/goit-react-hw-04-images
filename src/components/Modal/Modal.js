@@ -1,6 +1,5 @@
 import PropTypes from 'prop-types';
 import { MdClose } from 'react-icons/md';
-import { useLockedBody } from 'usehooks-ts';
 
 import { useEffect } from 'react';
 
@@ -12,23 +11,18 @@ export const Modal = props => {
     onClose,
   } = props;
 
-  const [locked, setLocked] = useLockedBody(false, 'root');
-
   useEffect(() => {
+    const onEscClick = e => {
+      if (e.code === 'Escape') {
+        onClose();
+      }
+    };
     document.addEventListener('keydown', onEscClick);
-    setLocked(!locked);
 
     return () => {
       document.removeEventListener('keydown', onEscClick);
-      setLocked(!locked);
     };
-  }, []);
-
-  const onEscClick = e => {
-    if (e.code === 'Escape') {
-      onClose();
-    }
-  };
+  }, [onClose]);
 
   const onCloseBtnClick = () => {
     onClose();
