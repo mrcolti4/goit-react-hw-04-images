@@ -1,5 +1,5 @@
 import { Helmet } from 'react-helmet';
-import { Component } from 'react';
+import { useEffect, useState } from 'react';
 import { getImageByQuery } from 'js/api/pixabay';
 
 import { Searchbar } from './Searchbar/Searchbar';
@@ -9,89 +9,85 @@ import { ImageNotFound } from './ImageNotFound/ImageNotFound';
 import { Loader } from './Loader/Loader';
 import { Modal } from './Modal/Modal';
 
-export class App extends Component {
-  static perPage = 12;
-  state = {
-    data: [],
-    query: '',
-    page: 1,
-    isLoading: false,
-    isShowModal: false,
-    modalData: null,
-  };
+export const App = () => {
+  const perPage = 12;
+  const [data, setData] = useState([]);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isShowModal, setIsShowModal] = useState(false);
+  const [modalData, setModalData] = useState(null);
 
-  componentDidUpdate(prevProps, prevState) {
-    const { query, page } = this.state;
-    if (prevState.query !== query || prevState.page !== page) {
-      this.getImages({ q: this.state.query, per_page: App.perPage, page });
-    }
-    if (prevState.query !== query) {
-      this.handleImageQuery(query);
-      this.setState({ data: [], page: 1 });
-    }
-  }
-
-  getImages = async (params = {}) => {
+  const getImages = async (query = '', params = {}) => {
     try {
-      this.setState({ isLoading: true });
-      const data = await getImageByQuery(params);
-      this.setState(prev => ({
-        data: prev.data ? [...prev.data, ...data] : [...data],
-      }));
+      setIsLoading(true);
+      const imageData = await getImageByQuery(query, params);
+      setData(prev => (prev ? [...prev, ...imageData] : [...imageData]));
     } catch (error) {
       console.log(error);
     } finally {
-      this.setState({ isLoading: false });
+      setIsLoading(false);
     }
   };
 
-  handleImageQuery = query => {
-    this.setState({ query });
+  useEffect(() => {
+    if (query === '') {
+      return;
+    }
+    handleImageQuery(query);
+    getImages(query, { per_page: perPage, page: 1 });
+  }, [query]);
+
+  useEffect(() => {
+    if (page !== 1) {
+      getImages('', { per_page: perPage, page });
+    }
+  }, [page]);
+
+  const handleImageQuery = query => {
+    setQuery(query);
+    setData([]);
+    setPage(1);
   };
 
-  handleLoadMore = () => {
-    this.setState(prev => ({ page: prev.page + 1 }));
+  const handleLoadMore = () => {
+    setPage(page + 1);
   };
 
-  onOpenModal = e => {
+  const onOpenModal = e => {
     const targetId = e.currentTarget.dataset.id;
-    this.showModal(targetId);
+    showModal(targetId);
   };
 
-  showModal = id => {
-    const { data } = this.state;
+  const showModal = id => {
     const modalData = data.find(item => item.id === Number(id));
 
-    this.setState(prev => ({ isShowModal: !prev.isShowModal, modalData }));
+    setIsShowModal(true);
+    setModalData(modalData);
   };
 
-  closeModal = () => {
-    this.setState({ isShowModal: false });
+  const closeModal = () => {
+    setIsShowModal(false);
   };
 
-  render() {
-    const { data, query, isLoading, modalData } = this.state;
-    return (
-      <>
-        <Helmet>
-          <meta
-            http-equiv="Content-Security-Policy"
-            content="upgrade-insecure-requests"
-          />
-        </Helmet>
-        <Searchbar handleImageQuery={this.handleImageQuery} />
-        <ImageNotFound
-          query={query}
-          dataLength={data.length}
-          isLoading={isLoading}
+  return (
+    <>
+      <Helmet>
+        <meta
+          http-equiv="Content-Security-Policy"
+          content="upgrade-insecure-requests"
         />
-        <ImageGallery data={data} onOpenModal={this.onOpenModal} />
-        <Loader isLoading={isLoading} />
-        <Button handleLoadMore={this.handleLoadMore} dataLength={data.length} />
-        {this.state.isShowModal && (
-          <Modal data={modalData} onClose={this.closeModal} />
-        )}
-      </>
-    );
-  }
-}
+      </Helmet>
+      <Searchbar requestQuery={query} handleImageQuery={handleImageQuery} />
+      <ImageNotFound
+        query={query}
+        dataLength={data.length}
+        isLoading={isLoading}
+      />
+      <ImageGallery data={data} onOpenModal={onOpenModal} />
+      <Loader isLoading={isLoading} />
+      <Button handleLoadMore={handleLoadMore} dataLength={data.length} />
+      {isShowModal && <Modal data={modalData} onClose={closeModal} />}
+    </>
+  );
+};
